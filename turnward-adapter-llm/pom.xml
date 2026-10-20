@@ -19,5 +19,22 @@
             <groupId>io.github.caiocv18</groupId>
             <artifactId>turnward-application</artifactId>
         </dependency>
+
+        <!-- Compiled against Boot 4.0.0; CircuitBreakerSmokeTest proves it on the Boot 4.1 line. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot4</artifactId>
+        </dependency>
+        <!-- @CircuitBreaker is an aspect: without AOP the annotation is silently ignored. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
