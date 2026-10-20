@@ -5,7 +5,7 @@ Decisions are written in the [MADR](https://adr.github.io/madr/) format. An ADR 
 | # | Decision | Status |
 |---|---|---|
 | [0001](0001-hexagonal-maven-multimodule-archunit.md) | Hexagonal architecture in a Maven multi-module build, enforced by ArchUnit | Accepted |
-| 0002 | Event sourcing in Postgres (no EventStoreDB, no Axon) | Proposed |
+| [0002](0002-event-sourcing-in-postgres.md) | Event sourcing in Postgres (no EventStoreDB, no Axon) | Accepted |
 | 0003 | Transactional outbox with a polling relay (no Debezium) | Proposed |
 | 0004 | At-least-once delivery plus deduplication (no Kafka transactions) | Proposed |
 | 0005 | Tool side effects: idempotency key, `ToolOutcomeUnknown` and human reconciliation | Proposed |
