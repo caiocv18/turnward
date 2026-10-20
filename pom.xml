@@ -71,6 +71,7 @@
         <pact.version>4.7.5</pact.version>
         <testcontainers-keycloak.version>4.4.0</testcontainers-keycloak.version>
         <archunit.version>1.5.1</archunit.version>
+        <jqwik.version>1.10.2</jqwik.version>
         <jacoco.version>0.8.15</jacoco.version>
 
         <!-- Coverage floor per module; domain and application raise it to 0.80. -->
@@ -161,6 +162,12 @@
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit</artifactId>
                 <version>${archunit.version}</version>
+            </dependency>
+            <!-- Built against JUnit Platform 1.14.4; the Boot BOM swaps in 6.0.3, so its engine is exercised by the domain build. -->
+            <dependency>
+                <groupId>net.jqwik</groupId>
+                <artifactId>jqwik</artifactId>
+                <version>${jqwik.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
