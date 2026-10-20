@@ -36,7 +36,7 @@ Modules:
 - `turnward-adapter-*`: one module per technology, each implementing ports. Depends on the application and the domain, never on another adapter.
 - `turnward-app`: the only module that knows every adapter; it wires them together and runs the `api` and `worker` roles by profile.
 
-Maven module boundaries make illegal imports impossible at compile time across modules. ArchUnit covers what modules cannot: package rules inside a module, the absence of `org.springframework` in the domain, and naming conventions for ports and adapters.
+Maven module boundaries make illegal imports impossible at compile time across modules. ArchUnit covers what modules cannot: package rules inside a module, an allow list that keeps the domain and the application on the JDK alone, and, as ports and adapters land, their naming conventions.
 
 ### Consequences
 
@@ -46,6 +46,7 @@ Maven module boundaries make illegal imports impossible at compile time across m
 - Bad: more modules and more `pom.xml` files to maintain than a single-module project.
 - Bad: mapping between domain types and adapter types (JPA or JDBC rows, Kafka records, DTOs) is explicit code.
 - Neutral: Maven was preferred over Gradle for its fixed lifecycle and for being the default in the Spring and enterprise Java ecosystem that this project targets.
+- Neutral: the build accepts only JDK 25 (`[25,26)` in the enforcer), the LTS pinned in `.sdkmanrc` and in CI. A newer JDK is refused until CI tests it.
 
 ### Confirmation
 

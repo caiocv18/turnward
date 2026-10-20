@@ -1,0 +1,3 @@
+# api role: webhook, approval and query endpoints. The web server arrives with turnward-adapter-web.
+turnward:
+  role: api
