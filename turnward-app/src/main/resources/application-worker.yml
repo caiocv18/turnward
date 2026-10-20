@@ -1,0 +1,7 @@
+# worker role: leases turns and drives them forward. Never serves HTTP.
+turnward:
+  role: worker
+
+spring:
+  main:
+    web-application-type: none
