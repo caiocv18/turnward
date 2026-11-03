@@ -1,5 +1,5 @@
 /**
- * Spring AI chat models (Ollama, Bedrock) behind Resilience4j.
+ * Spring AI chat models (Ollama, Anthropic API) behind Resilience4j.
  *
  * <p>Implements ports from {@code io.github.caiocv18.turnward.application.port}; never depends on another adapter.
  */

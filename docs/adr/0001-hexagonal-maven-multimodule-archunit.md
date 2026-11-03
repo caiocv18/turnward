@@ -7,14 +7,14 @@ date: 2026-10-19
 
 ## Context and problem statement
 
-turnward has a small, valuable core (the `Turn` aggregate, its events and the pure fold that rebuilds state) surrounded by many volatile integrations: Postgres, Kafka, Redis, Keycloak, two LLM providers through Spring AI, MCP in both directions and a Python agent. The integrations will change during the project (Ollama to Bedrock, polling relay to CDC, local Kafka to MSK), and the core must stay testable without any of them.
+turnward has a small, valuable core (the `Turn` aggregate, its events and the pure fold that rebuilds state) surrounded by many volatile integrations: Postgres, Kafka, Redis, Keycloak, two LLM providers through Spring AI, MCP in both directions and a Python agent. The integrations will change during the project (Ollama to the Anthropic API, polling relay to CDC, local Kafka to MSK), and the core must stay testable without any of them.
 
 The question is how to structure the code so that the dependency direction is guaranteed by the build, not by discipline.
 
 ## Decision drivers
 
 - The domain must be plain Java, testable with property-based tests and without a Spring context.
-- Swapping an adapter (for example, Ollama for Bedrock) must not touch the domain or the use cases.
+- Swapping an adapter (for example, Ollama for the Anthropic API) must not touch the domain or the use cases.
 - Adapters must not depend on each other, so each one can be replaced or tested alone.
 - A violation must fail the build, visibly, in CI.
 - The structure must be easy to read for someone browsing the repository.
