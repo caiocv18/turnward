@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import io.github.caiocv18.turnward.domain.tool.RiskLevel;
+import io.github.caiocv18.turnward.domain.turn.AlertContext;
 import io.github.caiocv18.turnward.domain.turn.LlmToolCall;
 import io.github.caiocv18.turnward.domain.turn.SuspensionCause;
 import io.github.caiocv18.turnward.domain.turn.ToolCall;
@@ -26,6 +27,7 @@ import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnStarted;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnSuspended;
 import io.github.caiocv18.turnward.domain.turn.TurnState;
 import io.github.caiocv18.turnward.domain.turn.TurnStatus;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +35,9 @@ import org.junit.jupiter.api.Test;
 
 class TurnDeciderTest {
 
-    private static final TurnStarted STARTED = new TurnStarted("fp-1", "tenant-a", "critical");
+    private static final TurnStarted STARTED = new TurnStarted("fp-1", "tenant-a", "critical",
+                new AlertContext("HighErrorRate", Map.of("service", "checkout-demo"), Map.of("summary", "errors"),
+                        Instant.parse("2026-11-02T12:00:00Z")));
     private static final LlmToolCall QUERY = new LlmToolCall("t1", "query_metrics", Map.of("q", "errors"));
     private static final LlmToolCall ROLLBACK = new LlmToolCall("t2", "rollback_deployment", Map.of());
     private static final LlmToolCall RESTART = new LlmToolCall("t3", "restart_pod", Map.of());
@@ -44,9 +48,46 @@ class TurnDeciderTest {
 
     private static TurnEvent[] asked(TurnEvent... more) {
         List<TurnEvent> all = new ArrayList<>(List.of(STARTED, new LlmCallStarted("c1", "haiku"),
-                new LlmCallCompleted("c1", 100, 20, List.of(QUERY, ROLLBACK, RESTART))));
+                new LlmCallCompleted("c1", 100, 20, List.of(QUERY, ROLLBACK, RESTART), "the answer")));
         all.addAll(List.of(more));
         return all.toArray(TurnEvent[]::new);
+    }
+
+    /** Started, then {@code calls} model calls that all failed. */
+    private static TurnEvent[] failedCalls(int calls) {
+        List<TurnEvent> all = new ArrayList<>(List.of(STARTED));
+        for (int i = 1; i <= calls; i++) {
+            all.add(new LlmCallStarted("c" + i, "haiku"));
+            all.add(new LlmCallFailed("c" + i, "timeout"));
+        }
+        return all.toArray(TurnEvent[]::new);
+    }
+
+    @Test
+    void aFailedModelCallIsRetriedOnlyUpToTheLimit() {
+        assertThat(decide(failedCalls(TurnDecider.MAX_LLM_CALLS - 1))).isEqualTo(new TurnCommand.CallLlm());
+        assertThat(decide(failedCalls(TurnDecider.MAX_LLM_CALLS)))
+                .isEqualTo(new TurnCommand.Fail("model call limit reached: " + TurnDecider.MAX_LLM_CALLS));
+    }
+
+    @Test
+    void toolsAskedForByTheLastCallAllowedDoNotRun() {
+        TurnEvent[] calls = failedCalls(TurnDecider.MAX_LLM_CALLS - 1);
+        String last = "c" + TurnDecider.MAX_LLM_CALLS;
+
+        assertThat(decide(append(calls, new LlmCallStarted(last, "haiku"),
+                new LlmCallCompleted(last, 100, 20, List.of(ROLLBACK), ""))))
+                .isEqualTo(new TurnCommand.Fail("model call limit reached: " + TurnDecider.MAX_LLM_CALLS));
+    }
+
+    @Test
+    void theLastCallAllowedCanStillAnswer() {
+        TurnEvent[] calls = failedCalls(TurnDecider.MAX_LLM_CALLS - 1);
+        String last = "c" + TurnDecider.MAX_LLM_CALLS;
+
+        assertThat(decide(append(calls, new LlmCallStarted(last, "haiku"),
+                new LlmCallCompleted(last, 100, 20, List.of(), "the answer"))))
+                .isEqualTo(new TurnCommand.Complete());
     }
 
     private static TurnEvent[] append(TurnEvent[] events, TurnEvent... more) {
@@ -84,7 +125,7 @@ class TurnDeciderTest {
     @Test
     void answerWithoutToolsCompletesTheTurn() {
         assertThat(decide(STARTED, new LlmCallStarted("c1", "haiku"),
-                new LlmCallCompleted("c1", 100, 20, List.of()))).isEqualTo(new TurnCommand.Complete());
+                new LlmCallCompleted("c1", 100, 20, List.of(), "the answer"))).isEqualTo(new TurnCommand.Complete());
     }
 
     @Test

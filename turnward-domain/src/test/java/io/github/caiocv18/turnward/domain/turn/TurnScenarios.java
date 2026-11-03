@@ -17,11 +17,13 @@ import io.github.caiocv18.turnward.domain.turn.TurnEvent.ToolCallStarted;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.ToolOutcomeUnknown;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnCancelled;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnCompleted;
+import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnFailed;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnResumed;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnStarted;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnSuspended;
 import io.github.caiocv18.turnward.domain.turn.command.TurnCommand;
 import io.github.caiocv18.turnward.domain.turn.command.TurnDecider;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +46,9 @@ final class TurnScenarios {
 
     static List<TurnEvent> play(List<Integer> choices) {
         List<TurnEvent> events = new ArrayList<>();
-        TurnState state = append(events, TurnState.initial(), new TurnStarted("fp-1", TENANT, "critical"));
+        TurnState state = append(events, TurnState.initial(), new TurnStarted("fp-1", TENANT, "critical",
+                new AlertContext("HighErrorRate", Map.of("service", "checkout-demo"), Map.of("summary", "errors"),
+                        Instant.parse("2026-11-02T12:00:00Z"))));
         int toolCalls = 0;
         for (int choice : choices) {
             if (state.status().isTerminal()) {
@@ -68,7 +72,8 @@ final class TurnScenarios {
                                 choice, toolOutcome(execute.call(), choice));
                         case TurnCommand.Reconcile reconcile ->
                                 List.of(new ToolOutcomeUnknown(reconcile.call().toolCallId()));
-                        case TurnCommand.Complete complete -> List.of(new TurnCompleted("resolved", "rolled back"));
+                        case TurnCommand.Complete complete -> List.of(new TurnCompleted("the answer", "rolled back"));
+                        case TurnCommand.Fail fail -> List.of(new TurnFailed(fail.cause()));
                         case TurnCommand.Halt halt -> List.of(outsideWorld(current, choice));
                     });
             for (TurnEvent event : step) {
@@ -131,13 +136,13 @@ final class TurnScenarios {
             return new LlmCallFailed(callId, "timeout");
         }
         if (choice < 40) {
-            return new LlmCallCompleted(callId, 100, 20, List.of());
+            return new LlmCallCompleted(callId, 100, 20, List.of(), "the answer");
         }
         List<LlmToolCall> asked = new ArrayList<>();
         for (int i = 1; i <= choice % 3 + 1; i++) {
             asked.add(new LlmToolCall("tool-" + (toolCallsSoFar + i), "tool" + choice % 5, Map.of("arg", "v")));
         }
-        return new LlmCallCompleted(callId, 100, 20, asked);
+        return new LlmCallCompleted(callId, 100, 20, asked, "the answer");
     }
 
     private static TurnEvent verdict(ToolCall call, int choice) {

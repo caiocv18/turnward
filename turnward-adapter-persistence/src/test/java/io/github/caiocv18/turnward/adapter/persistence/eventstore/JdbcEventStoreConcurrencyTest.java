@@ -36,7 +36,7 @@ class JdbcEventStoreConcurrencyTest {
     void exactlyOneOfTwoWritersAtTheSameVersionWins() throws Exception {
         TurnId stream = new TurnId(UUID.randomUUID());
         store.append(stream, SampleEvents.TENANT, 0, SampleEvents.shortTurn().subList(0, 2));
-        List<TurnEvent> left = List.of(new TurnEvent.LlmCallCompleted("llm-1", 1, 1, List.of()));
+        List<TurnEvent> left = List.of(new TurnEvent.LlmCallCompleted("llm-1", 1, 1, List.of(), "the answer"));
         List<TurnEvent> right = List.of(new TurnEvent.LlmCallFailed("llm-1", "timeout"));
 
         CountDownLatch start = new CountDownLatch(1);

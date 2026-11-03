@@ -64,6 +64,13 @@ public sealed interface TurnCommand {
     record Complete() implements TurnCommand {
     }
 
+    /** The turn cannot go on: append {@code TurnFailed} with this cause. */
+    record Fail(String cause) implements TurnCommand {
+        public Fail {
+            Objects.requireNonNull(cause, "cause");
+        }
+    }
+
     /** Nothing to run: the turn ended, is suspended or waits for a human. The worker drops the lease. */
     record Halt() implements TurnCommand {
     }

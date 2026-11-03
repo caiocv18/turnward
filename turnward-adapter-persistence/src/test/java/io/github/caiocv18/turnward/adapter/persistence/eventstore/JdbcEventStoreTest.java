@@ -115,6 +115,16 @@ class JdbcEventStoreTest {
     }
 
     @Test
+    void appendingFromVersionZeroToAnExistingStreamIsAConflict() {
+        TurnId stream = newStream();
+        store.append(stream, SampleEvents.TENANT, 0, SampleEvents.shortTurn().subList(0, 1));
+
+        assertThatThrownBy(() -> store.append(stream, SampleEvents.TENANT, 0, SampleEvents.shortTurn().subList(0, 1)))
+                .isInstanceOf(ConcurrencyConflictException.class);
+        assertThat(store.load(stream)).hasSize(1);
+    }
+
+    @Test
     void aNewStreamMustBeAppendedFromVersionZero() {
         TurnId stream = newStream();
 

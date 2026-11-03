@@ -24,6 +24,7 @@ import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnFailed;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnResumed;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnStarted;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent.TurnSuspended;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +34,9 @@ import org.junit.jupiter.api.Test;
 
 class TurnTest {
 
-    static final TurnStarted STARTED = new TurnStarted("fp-1", "tenant-a", "critical");
+    static final TurnStarted STARTED = new TurnStarted("fp-1", "tenant-a", "critical",
+                new AlertContext("HighErrorRate", Map.of("service", "checkout-demo"), Map.of("summary", "errors"),
+                        Instant.parse("2026-11-02T12:00:00Z")));
     static final LlmToolCall ROLLBACK = new LlmToolCall("t1", "rollback_deployment", Map.of("service", "checkout"));
     static final LlmToolCall QUERY = new LlmToolCall("t2", "query_metrics", Map.of("q", "errors"));
 
@@ -41,7 +44,7 @@ class TurnTest {
     static List<TurnEvent> proposed(RiskLevel risk) {
         return List.of(STARTED,
                 new LlmCallStarted("c1", "haiku"),
-                new LlmCallCompleted("c1", 100, 20, List.of(ROLLBACK)),
+                new LlmCallCompleted("c1", 100, 20, List.of(ROLLBACK), "the answer"),
                 new ToolCallProposed("t1", "rollback_deployment", ROLLBACK.args(), risk));
     }
 
@@ -75,7 +78,7 @@ class TurnTest {
         List<TurnEvent> inFlight = List.of(STARTED, new LlmCallStarted("c1", "haiku"));
         assertThat(Turn.fold(inFlight).llmCallInFlight()).contains("c1");
 
-        TurnState answered = Turn.fold(plus(inFlight, new LlmCallCompleted("c1", 10, 5, List.of())));
+        TurnState answered = Turn.fold(plus(inFlight, new LlmCallCompleted("c1", 10, 5, List.of(), "the answer")));
         assertThat(answered.llmCallInFlight()).isEmpty();
         assertThat(answered.lastLlmOutcome()).isEqualTo(LlmOutcome.ANSWERED);
 
@@ -88,9 +91,25 @@ class TurnTest {
     }
 
     @Test
+    void theArgsOfAToolCallHaveAStableOrder() {
+        LlmToolCall call = new LlmToolCall("t1", "query_metrics", Map.of("z", "1", "a", "2", "m", "3"));
+
+        assertThat(call.args().keySet()).containsExactly("a", "m", "z");
+        assertThat(call.args()).isEqualTo(Map.of("a", "2", "m", "3", "z", "1"));
+    }
+
+    @Test
+    void everyModelCallThatStartedIsCountedEvenWhenItWasLost() {
+        TurnState state = Turn.fold(List.of(STARTED, new LlmCallStarted("c1", "haiku"),
+                new LlmCallFailed("c1", "lost in crash"), new LlmCallStarted("c2", "haiku")));
+
+        assertThat(state.llmCallsStarted()).isEqualTo(2);
+    }
+
+    @Test
     void toolCallsAskedByTheModelWaitToBeProposed() {
         TurnState state = Turn.fold(List.of(STARTED, new LlmCallStarted("c1", "haiku"),
-                new LlmCallCompleted("c1", 10, 5, List.of(ROLLBACK))));
+                new LlmCallCompleted("c1", 10, 5, List.of(ROLLBACK), "the answer")));
 
         assertThat(state.lastLlmOutcome()).isEqualTo(LlmOutcome.REQUESTED_TOOLS);
         assertThat(state.pendingProposals()).containsExactly(ROLLBACK);
@@ -119,7 +138,7 @@ class TurnTest {
     @Test
     void turnDoesNotWaitForAHumanWhileAnotherCallCanRun() {
         List<TurnEvent> events = List.of(STARTED, new LlmCallStarted("c1", "haiku"),
-                new LlmCallCompleted("c1", 100, 20, List.of(ROLLBACK, QUERY)),
+                new LlmCallCompleted("c1", 100, 20, List.of(ROLLBACK, QUERY), "the answer"),
                 new ToolCallProposed("t1", "rollback_deployment", ROLLBACK.args(), RiskLevel.DANGEROUS),
                 new ToolCallProposed("t2", "query_metrics", QUERY.args(), RiskLevel.READ_ONLY),
                 new ApprovalRequested("t1"));
@@ -259,7 +278,7 @@ class TurnTest {
     void modelIsNotCalledAgainWhileToolCallsAreOpen() {
         for (List<TurnEvent> open : List.of(
                 List.<TurnEvent>of(STARTED, new LlmCallStarted("c1", "haiku"),
-                        new LlmCallCompleted("c1", 1, 1, List.of(ROLLBACK))),
+                        new LlmCallCompleted("c1", 1, 1, List.of(ROLLBACK), "the answer")),
                 proposed(RiskLevel.READ_ONLY),
                 plus(proposed(RiskLevel.DANGEROUS), new ApprovalRequested("t1")),
                 plus(proposed(RiskLevel.SIDE_EFFECT), new ToolCallStarted("t1", "k")))) {
@@ -276,18 +295,18 @@ class TurnTest {
         assertThatIllegalStateException().isThrownBy(() -> Turn.fold(
                 List.of(STARTED, new LlmCallStarted("c1", "haiku"), new LlmCallStarted("c2", "haiku"))));
         assertThatIllegalStateException()
-                .isThrownBy(() -> Turn.fold(List.of(STARTED, new LlmCallCompleted("c9", 1, 1, List.of()))));
+                .isThrownBy(() -> Turn.fold(List.of(STARTED, new LlmCallCompleted("c9", 1, 1, List.of(), "the answer"))));
         assertThatIllegalStateException().isThrownBy(() -> Turn.fold(List.of(STARTED,
-                new LlmCallStarted("c1", "haiku"), new LlmCallCompleted("c1", 1, 1, List.of(ROLLBACK, ROLLBACK)))));
+                new LlmCallStarted("c1", "haiku"), new LlmCallCompleted("c1", 1, 1, List.of(ROLLBACK, ROLLBACK), "the answer"))));
         assertThatIllegalStateException().isThrownBy(() -> Turn.fold(plus(proposed(RiskLevel.READ_ONLY),
                 new ToolCallStarted("t1", "k"), new ToolCallCompleted("t1", "r"), new LlmCallStarted("c2", "haiku"),
-                new LlmCallCompleted("c2", 1, 1, List.of(ROLLBACK)))))
+                new LlmCallCompleted("c2", 1, 1, List.of(ROLLBACK), "the answer"))))
                 .withMessageContaining("tool call id reused");
         assertThatIllegalStateException().isThrownBy(() -> Turn.fold(List.of(STARTED,
                 new ToolCallProposed("t1", "rollback_deployment", Map.of(), RiskLevel.READ_ONLY))))
                 .withMessageContaining("did not ask");
         List<TurnEvent> asked = List.of(STARTED, new LlmCallStarted("c1", "haiku"),
-                new LlmCallCompleted("c1", 1, 1, List.of(ROLLBACK)));
+                new LlmCallCompleted("c1", 1, 1, List.of(ROLLBACK), "the answer"));
         assertThatIllegalStateException().isThrownBy(() -> Turn.fold(plus(asked,
                 new ToolCallProposed("t1", "other_tool", ROLLBACK.args(), RiskLevel.READ_ONLY))))
                 .withMessageContaining("differs from the model's");
@@ -309,7 +328,7 @@ class TurnTest {
         chunks.add("k2");
         assertThat(retrieved.chunkIds()).containsExactly("k1");
 
-        TurnState state = new TurnState(TurnStatus.ACTIVE, Optional.of("tenant-a"), Optional.empty(), LlmOutcome.NONE,
+        TurnState state = new TurnState(TurnStatus.ACTIVE, Optional.of("tenant-a"), Optional.empty(), 0, LlmOutcome.NONE,
                 List.of(), List.of(), Set.of(), 1);
         assertThat(state.toolCalls()).isEmpty();
         assertThat(state.hasOpenToolCalls()).isFalse();

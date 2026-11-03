@@ -22,7 +22,9 @@ public interface EventStore {
      * @param expectedVersion the stream version the caller folded, 0 for a new stream
      * @throws ConcurrencyConflictException when the stream is not at {@code expectedVersion}, including when
      *     another writer appended first; nothing is written. Inside a caller's transaction the conflict rolls that
-     *     transaction back too, so the retry (reload, fold, decide) starts a new one.
+     *     transaction back too, so the retry (reload, fold, decide) starts a new one. The outcome of an effect that
+     *     already ran is the exception: deciding again would repeat the effect, so {@code AdvanceTurn} reloads and
+     *     appends the same outcome.
      */
     void append(TurnId streamId, String tenantId, long expectedVersion, List<TurnEvent> events);
 

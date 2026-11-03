@@ -14,11 +14,14 @@ import java.util.Objects;
  */
 public sealed interface TurnEvent {
 
-    record TurnStarted(String alertFingerprint, String tenantId, String severity) implements TurnEvent {
+    /** Carries the alert itself, because nothing else in the stream can rebuild the prompt after a crash. */
+    record TurnStarted(String alertFingerprint, String tenantId, String severity, AlertContext alert)
+            implements TurnEvent {
         public TurnStarted {
             Objects.requireNonNull(alertFingerprint, "alertFingerprint");
             Objects.requireNonNull(tenantId, "tenantId");
             Objects.requireNonNull(severity, "severity");
+            Objects.requireNonNull(alert, "alert");
         }
     }
 
@@ -39,11 +42,16 @@ public sealed interface TurnEvent {
         }
     }
 
-    record LlmCallCompleted(String callId, long tokensIn, long tokensOut, List<LlmToolCall> toolCalls)
+    /**
+     * @param text what the model wrote, empty when it only asked for tools; a turn's summary comes from here, so a
+     *     crash between this event and {@link TurnCompleted} does not lose the answer
+     */
+    record LlmCallCompleted(String callId, long tokensIn, long tokensOut, List<LlmToolCall> toolCalls, String text)
             implements TurnEvent {
         public LlmCallCompleted {
             Objects.requireNonNull(callId, "callId");
             toolCalls = List.copyOf(Objects.requireNonNull(toolCalls, "toolCalls"));
+            Objects.requireNonNull(text, "text");
         }
     }
 
@@ -98,10 +106,11 @@ public sealed interface TurnEvent {
         }
     }
 
-    record ToolCallCompleted(String toolCallId, String resultRef) implements TurnEvent {
+    /** @param result what the tool returned, inline and bounded by the caller; the next model call reads it */
+    record ToolCallCompleted(String toolCallId, String result) implements TurnEvent {
         public ToolCallCompleted {
             Objects.requireNonNull(toolCallId, "toolCallId");
-            Objects.requireNonNull(resultRef, "resultRef");
+            Objects.requireNonNull(result, "result");
         }
     }
 
