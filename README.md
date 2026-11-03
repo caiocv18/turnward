@@ -30,7 +30,7 @@ flowchart LR
     API -->|append TurnStarted| ES[(Postgres<br/>event store + outbox)]
     W[turnward worker] -->|lease + fold| ES
     W -->|RAG| VS[(pgvector<br/>runbooks)]
-    W -->|LLM call| LLM[Spring AI<br/>Ollama / Bedrock]
+    W -->|LLM call| LLM[Spring AI<br/>Ollama / Claude API]
     W -->|tools| MCP[MCP servers<br/>own tools + log-analyst in Python]
     W -->|risky tool| HU[Human approval<br/>Keycloak]
     ES -->|outbox relay| K[(Kafka)]
@@ -52,7 +52,7 @@ Hexagonal architecture in a Maven multi-module build. ArchUnit runs in CI to kee
 | `turnward-adapter-web` | Alertmanager webhook, approval and query API, OAuth2 resource server |
 | `turnward-adapter-persistence` | JDBC event store, outbox, worker lease, Flyway, `PgVectorStore` |
 | `turnward-adapter-kafka` | outbox relay, metering consumer |
-| `turnward-adapter-llm` | Spring AI (Ollama / Bedrock) with Resilience4j |
+| `turnward-adapter-llm` | Spring AI (Ollama / Claude API) with Resilience4j |
 | `turnward-adapter-mcp-client` | MCP client for remote tools |
 | `turnward-adapter-mcp-server` | MCP server exposing turnward's own tools |
 | `turnward-adapter-redis` | budget token bucket |
@@ -62,7 +62,7 @@ Outside Maven: `agents/log-analyst/` (Python, Google ADK served over MCP), `infr
 
 ## Stack
 
-Java 25 (Temurin) · Spring Boot 4.1 · Spring AI · Postgres + pgvector · Kafka (KRaft) · Redis · Keycloak · MCP (Streamable HTTP) · Python + Google ADK · Resilience4j · OpenTelemetry, Prometheus, Grafana, Tempo · JUnit, Testcontainers, Pact, JaCoCo · Terraform on AWS (ECS Fargate, RDS, Bedrock) · GitHub Actions with OIDC.
+Java 25 (Temurin) · Spring Boot 4.1 · Spring AI (Ollama, Claude API) · Postgres + pgvector · Kafka (KRaft) · Redis · Keycloak · MCP (Streamable HTTP) · Python + Google ADK · Resilience4j · OpenTelemetry, Prometheus, Grafana, Tempo · JUnit, Testcontainers, Pact, JaCoCo · Terraform on AWS (ECS Fargate, RDS) · GitHub Actions with OIDC.
 
 ## Roadmap
 

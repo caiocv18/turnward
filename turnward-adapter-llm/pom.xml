@@ -12,7 +12,7 @@
 
     <artifactId>turnward-adapter-llm</artifactId>
     <name>turnward-adapter-llm</name>
-    <description>Spring AI chat models (Ollama, Bedrock) behind Resilience4j.</description>
+    <description>Spring AI chat models (Ollama, Anthropic API) behind Resilience4j.</description>
 
     <dependencies>
         <dependency>

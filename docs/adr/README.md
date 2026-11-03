@@ -14,7 +14,7 @@ Decisions are written in the [MADR](https://adr.github.io/madr/) format. An ADR 
 | 0008 | Resilience4j operator order in Reactor (`onErrorResume` after `transformDeferred`) | Proposed |
 | 0009 | Budget: Postgres ledger is the source of truth, Redis enforces it fail-closed | Proposed |
 | 0010 | Kafka on AWS: KRaft container on Fargate, MSK Serverless optional | Proposed |
-| 0011 | Ollama in dev and test, Amazon Bedrock in production, both behind Spring AI | Proposed |
+| [0011](0011-ollama-dev-anthropic-api-prod.md) | Ollama in dev and test, the Anthropic API in production, both behind Spring AI | Accepted |
 | 0012 | MCP over Streamable HTTP with authentication for remote servers | Proposed |
 | 0013 | Ephemeral infrastructure with a budget alarm and scheduled destroy | Proposed |
 | 0014 | OpenTelemetry GenAI conventions (experimental) isolated in one adapter | Proposed |
