@@ -15,6 +15,13 @@ import java.util.Optional;
  */
 public final class TurnDecider {
 
+    /**
+     * Model calls one turn may start, lost and failed ones included. A base turn takes 4, so reaching this means a
+     * model that is down or asks for tools without end, and the turn fails instead of growing its stream forever.
+     * The last call has to answer: tools it asks for do not run, because no model would be left to read the results.
+     */
+    public static final int MAX_LLM_CALLS = 8;
+
     private TurnDecider() {
     }
 
@@ -42,7 +49,9 @@ public final class TurnDecider {
             return new TurnCommand.AbandonLlmCall(state.llmCallInFlight().get());
         }
         if (!state.pendingProposals().isEmpty()) {
-            return new TurnCommand.ProposeTool(state.pendingProposals().getFirst());
+            return state.llmCallsStarted() < MAX_LLM_CALLS
+                    ? new TurnCommand.ProposeTool(state.pendingProposals().getFirst())
+                    : limitReached();
         }
         Optional<ToolCall> runnable = state.toolCalls().stream()
                 .filter(call -> call.phase() == ToolCallPhase.APPROVED
@@ -60,7 +69,13 @@ public final class TurnDecider {
         }
         return switch (state.lastLlmOutcome()) {
             case ANSWERED -> new TurnCommand.Complete();
-            case NONE, REQUESTED_TOOLS, FAILED -> new TurnCommand.CallLlm();
+            case NONE, REQUESTED_TOOLS, FAILED -> state.llmCallsStarted() < MAX_LLM_CALLS
+                    ? new TurnCommand.CallLlm()
+                    : limitReached();
         };
+    }
+
+    private static TurnCommand limitReached() {
+        return new TurnCommand.Fail("model call limit reached: " + MAX_LLM_CALLS);
     }
 }

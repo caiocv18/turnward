@@ -12,13 +12,14 @@ import java.util.Set;
  *
  * @param tenantId the tenant that owns the turn, known once it started
  * @param llmCallInFlight a model call that started and has no outcome yet
+ * @param llmCallsStarted how many model calls this turn started, counting the ones lost or failed
  * @param pendingProposals tool calls the model asked for that were not proposed yet, in the model's order
  * @param toolCalls proposed tool calls, in proposal order
  * @param suspendedBy every cause currently holding the turn suspended
  */
 public record TurnState(TurnStatus status, Optional<String> tenantId, Optional<String> llmCallInFlight,
-        LlmOutcome lastLlmOutcome, List<LlmToolCall> pendingProposals, List<ToolCall> toolCalls,
-        Set<SuspensionCause> suspendedBy, long version) {
+        int llmCallsStarted, LlmOutcome lastLlmOutcome, List<LlmToolCall> pendingProposals,
+        List<ToolCall> toolCalls, Set<SuspensionCause> suspendedBy, long version) {
 
     public TurnState {
         Objects.requireNonNull(status, "status");
@@ -31,8 +32,8 @@ public record TurnState(TurnStatus status, Optional<String> tenantId, Optional<S
     }
 
     public static TurnState initial() {
-        return new TurnState(TurnStatus.NOT_STARTED, Optional.empty(), Optional.empty(), LlmOutcome.NONE, List.of(),
-                List.of(), Set.of(), 0);
+        return new TurnState(TurnStatus.NOT_STARTED, Optional.empty(), Optional.empty(), 0, LlmOutcome.NONE,
+                List.of(), List.of(), Set.of(), 0);
     }
 
     public Optional<ToolCall> toolCall(String toolCallId) {
@@ -59,17 +60,22 @@ public record TurnState(TurnStatus status, Optional<String> tenantId, Optional<S
     }
 
     TurnState withStatus(TurnStatus next) {
-        return new TurnState(next, tenantId, llmCallInFlight, lastLlmOutcome, pendingProposals, toolCalls,
+        return new TurnState(next, tenantId, llmCallInFlight, llmCallsStarted, lastLlmOutcome, pendingProposals, toolCalls,
                 suspendedBy, version);
     }
 
     TurnState withTenant(String tenant) {
-        return new TurnState(status, Optional.of(tenant), llmCallInFlight, lastLlmOutcome, pendingProposals,
+        return new TurnState(status, Optional.of(tenant), llmCallInFlight, llmCallsStarted, lastLlmOutcome, pendingProposals,
+                toolCalls, suspendedBy, version);
+    }
+
+    TurnState withLlmCallStarted(String callId) {
+        return new TurnState(status, tenantId, Optional.of(callId), llmCallsStarted + 1, lastLlmOutcome, List.of(),
                 toolCalls, suspendedBy, version);
     }
 
     TurnState withLlm(Optional<String> inFlight, LlmOutcome outcome, List<LlmToolCall> proposals) {
-        return new TurnState(status, tenantId, inFlight, outcome, proposals, toolCalls, suspendedBy, version);
+        return new TurnState(status, tenantId, inFlight, llmCallsStarted, outcome, proposals, toolCalls, suspendedBy, version);
     }
 
     TurnState withProposal(LlmToolCall proposed, ToolCall call) {
@@ -77,7 +83,7 @@ public record TurnState(TurnStatus status, Optional<String> tenantId, Optional<S
         remaining.remove(proposed);
         List<ToolCall> calls = new ArrayList<>(toolCalls);
         calls.add(call);
-        return new TurnState(status, tenantId, llmCallInFlight, lastLlmOutcome, remaining, calls, suspendedBy,
+        return new TurnState(status, tenantId, llmCallInFlight, llmCallsStarted, lastLlmOutcome, remaining, calls, suspendedBy,
                 version);
     }
 
@@ -85,7 +91,7 @@ public record TurnState(TurnStatus status, Optional<String> tenantId, Optional<S
         List<ToolCall> calls = toolCalls.stream()
                 .map(call -> call.toolCallId().equals(updated.toolCallId()) ? updated : call)
                 .toList();
-        return new TurnState(status, tenantId, llmCallInFlight, lastLlmOutcome, pendingProposals, calls,
+        return new TurnState(status, tenantId, llmCallInFlight, llmCallsStarted, lastLlmOutcome, pendingProposals, calls,
                 suspendedBy, version);
     }
 
@@ -97,12 +103,12 @@ public record TurnState(TurnStatus status, Optional<String> tenantId, Optional<S
         } else {
             causes.remove(cause);
         }
-        return new TurnState(status, tenantId, llmCallInFlight, lastLlmOutcome, pendingProposals, toolCalls, causes,
+        return new TurnState(status, tenantId, llmCallInFlight, llmCallsStarted, lastLlmOutcome, pendingProposals, toolCalls, causes,
                 version);
     }
 
     TurnState withVersion(long next) {
-        return new TurnState(status, tenantId, llmCallInFlight, lastLlmOutcome, pendingProposals, toolCalls,
+        return new TurnState(status, tenantId, llmCallInFlight, llmCallsStarted, lastLlmOutcome, pendingProposals, toolCalls,
                 suspendedBy, next);
     }
 }

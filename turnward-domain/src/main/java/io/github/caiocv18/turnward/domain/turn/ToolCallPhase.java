@@ -13,7 +13,7 @@ public enum ToolCallPhase {
     STARTED,
     COMPLETED,
     FAILED,
-    /** A crash left a call with side effects without outcome; a human must reconcile it. */
+    /** A call with side effects has no known outcome, after a crash or a timeout; a human must reconcile it. */
     OUTCOME_UNKNOWN;
 
     /** No further step is owed to this call. */

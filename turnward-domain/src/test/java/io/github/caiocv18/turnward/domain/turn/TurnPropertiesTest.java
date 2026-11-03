@@ -124,6 +124,24 @@ class TurnPropertiesTest {
     }
 
     /**
+     * Whatever the model does, down or asking for tools without end, a turn starts at most the limit of model calls.
+     * The count in the state is compared with the stream itself, so the limit cannot pass by miscounting.
+     */
+    @Property(tries = 1000)
+    void aTurnNeverStartsMoreModelCallsThanTheLimit(
+            @ForAll @Size(max = 200) List<@IntRange(min = 0, max = 99) Integer> choices) {
+        List<TurnEvent> events = TurnScenarios.play(choices);
+        long started = events.stream().filter(LlmCallStarted.class::isInstance).count();
+
+        assertThat(started).isLessThanOrEqualTo(TurnDecider.MAX_LLM_CALLS);
+        assertThat((long) Turn.fold(events).llmCallsStarted()).isEqualTo(started);
+
+        boolean reached = started == TurnDecider.MAX_LLM_CALLS;
+        Statistics.label("reached the limit").collect(reached);
+        Statistics.label("reached the limit").coverage(check -> check.check(true).percentage(p -> p > 1));
+    }
+
+    /**
      * The worker drops the lease exactly when the status is idle, so the decider must have nothing to run then, and
      * something to run otherwise. A waiting status also has to name a call that is really waiting.
      */

@@ -60,7 +60,7 @@ public final class Turn {
                 requireNotSuspended(state, event);
                 require(state.llmCallInFlight().isEmpty(), state, event, "a model call is already in flight");
                 require(!state.hasOpenToolCalls(), state, event, "tool calls still open");
-                yield state.withLlm(Optional.of(started.callId()), state.lastLlmOutcome(), List.of());
+                yield state.withLlmCallStarted(started.callId());
             }
             case LlmCallCompleted completed -> {
                 requireInFlight(state, event, completed.callId());

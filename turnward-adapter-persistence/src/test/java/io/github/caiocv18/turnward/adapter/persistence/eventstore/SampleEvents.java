@@ -1,9 +1,11 @@
 package io.github.caiocv18.turnward.adapter.persistence.eventstore;
 
 import io.github.caiocv18.turnward.domain.tool.RiskLevel;
+import io.github.caiocv18.turnward.domain.turn.AlertContext;
 import io.github.caiocv18.turnward.domain.turn.LlmToolCall;
 import io.github.caiocv18.turnward.domain.turn.SuspensionCause;
 import io.github.caiocv18.turnward.domain.turn.TurnEvent;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -17,11 +19,13 @@ final class SampleEvents {
     /** One of each record, with every component set to a value that is not the default. */
     static List<TurnEvent> oneOfEach() {
         return List.of(
-                new TurnEvent.TurnStarted("fp-1", TENANT, "critical"),
+                new TurnEvent.TurnStarted("fp-1", TENANT, "critical",
+                new AlertContext("HighErrorRate", Map.of("service", "checkout-demo"), Map.of("summary", "errors"),
+                        Instant.parse("2026-11-02T12:00:00Z"))),
                 new TurnEvent.RunbookContextRetrieved(List.of("chunk-1", "chunk-2"), List.of(0.91, 0.42)),
                 new TurnEvent.LlmCallStarted("llm-1", "llama3.2"),
                 new TurnEvent.LlmCallCompleted("llm-1", 3_000, 500,
-                        List.of(new LlmToolCall("tool-1", "rollback_deployment", Map.of("service", "checkout")))),
+                        List.of(new LlmToolCall("tool-1", "rollback_deployment", Map.of("service", "checkout"))), "the answer"),
                 new TurnEvent.LlmCallFailed("llm-2", "timeout"),
                 new TurnEvent.ToolCallProposed("tool-1", "rollback_deployment", Map.of("service", "checkout"),
                         RiskLevel.DANGEROUS),
@@ -36,7 +40,7 @@ final class SampleEvents {
                 new TurnEvent.BudgetExceeded(TENANT, -120),
                 new TurnEvent.TurnSuspended("maintenance window"),
                 new TurnEvent.TurnResumed(SuspensionCause.BUDGET),
-                new TurnEvent.TurnCompleted("rolled back", "resolved"),
+                new TurnEvent.TurnCompleted("the answer", "resolved"),
                 new TurnEvent.TurnFailed("no runbook"),
                 new TurnEvent.TurnCancelled("operator-a"));
     }
@@ -44,9 +48,11 @@ final class SampleEvents {
     /** A turn the strict fold accepts: start, one model call that asks for nothing, completion. */
     static List<TurnEvent> shortTurn() {
         return List.of(
-                new TurnEvent.TurnStarted("fp-1", TENANT, "critical"),
+                new TurnEvent.TurnStarted("fp-1", TENANT, "critical",
+                new AlertContext("HighErrorRate", Map.of("service", "checkout-demo"), Map.of("summary", "errors"),
+                        Instant.parse("2026-11-02T12:00:00Z"))),
                 new TurnEvent.LlmCallStarted("llm-1", "llama3.2"),
-                new TurnEvent.LlmCallCompleted("llm-1", 3_000, 500, List.of()),
-                new TurnEvent.TurnCompleted("nothing to do", "resolved"));
+                new TurnEvent.LlmCallCompleted("llm-1", 3_000, 500, List.of(), "the answer"),
+                new TurnEvent.TurnCompleted("the answer", "resolved"));
     }
 }
