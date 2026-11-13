@@ -49,7 +49,9 @@ Chosen option: **option 1**, the Anthropic API.
 
 ### Confirmation
 
-Decided on documentation and on reading the sources of Spring AI 2.0.1 and the Anthropic Java SDK 2.52.0. **No real call has been made yet.** Before production, one run has to prove:
+Decided on documentation and on reading the sources of Spring AI 2.0.1 and the Anthropic Java SDK 2.52.0.
+
+The first real call was made on 2026-11-12 by `scripts/smoke-anthropic-api.sh`: a plain Messages request with the production key, from a dedicated `turnward` workspace with a monthly spend limit, answered HTTP 200 by `claude-haiku-5-5` with usage reported. It proves the key, the credits and the endpoint, not the adapter. Before production, one run through the adapter has to prove:
 
 - `dependencyConvergence` passes with `spring-ai-starter-model-anthropic`. Reading the enforcer's rules predicts three `com.github.victools` divergences (5.0.0 against 4.38.0), to be pinned in `dependencyManagement`.
 - A tool-use conversation works when replayed from the stream. The stream keeps only each answer's text and tool calls, and adaptive thinking is on by default on Haiku 5.5 and Sonnet 5.5, so the replay leaves the thinking blocks out and may be rejected with a 400. Haiku 5.5 can run with thinking disabled; Sonnet 5.5 cannot avoid thinking blocks between tools in the same way. The last resort is the SDK directly for that part of the adapter, because Spring AI's types for sending those blocks back are package-private and it reorders content. That also means keeping the model's raw content in `LlmCallCompleted`, which is a change to the event.
