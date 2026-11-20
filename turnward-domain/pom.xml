@@ -63,4 +63,5 @@
             </plugin>
         </plugins>
     </build>
+<!-- throwaway: proves the architecture check fails without docs -->
 </project>
