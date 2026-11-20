@@ -1,0 +1,87 @@
+name: architecture
+
+# Living architecture (ADR-0016): a pull request that changes a key path must also touch docs/arquitetura/
+# or docs/adr/, unless it carries the label arquitetura-sem-mudanca. Required check: it runs on every pull
+# request (no `paths` in `on:`, or the check would stay pending forever) and re-runs when a label changes.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      key: ${{ steps.filter.outputs.key }}
+      key_files: ${{ steps.filter.outputs.key_files }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      # On pull_request the filter reads the changed files from the API: no checkout
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          list-files: shell
+          # Paths that move a box or an arrow of docs/arquitetura. The root pom.xml (versions, plugins) and the
+          # code inside the adapters stay out: filling an adapter changes what a box does, not where it is
+          filters: |
+            key:
+              - 'turnward-*/pom.xml'
+              - 'turnward-application/src/main/java/**/application/port/**'
+              - 'turnward-app/src/main/resources/application*.yml'
+              - 'turnward-*/src/main/resources/db/migration/**'
+              - 'turnward-app/src/test/java/**/architecture/**'
+              - 'deploy/**'
+              - 'infra/**/*.tf'
+              - 'agents/**'
+            docs:
+              - 'docs/arquitetura/**'
+              - 'docs/adr/**'
+
+  architecture:
+    name: architecture
+    needs: changes
+    # Always runs, so the required check always reports; it fails closed when the filter breaks
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Key paths against the architecture docs
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          KEY: ${{ needs.changes.outputs.key }}
+          KEY_FILES: ${{ needs.changes.outputs.key_files }}
+          DOCS: ${{ needs.changes.outputs.docs }}
+          EXEMPT: ${{ contains(github.event.pull_request.labels.*.name, 'arquitetura-sem-mudanca') }}
+        run: |
+          if [ "$CHANGES_RESULT" != success ]; then
+            echo "::error::the changes job did not succeed ($CHANGES_RESULT), so the key paths are unknown"
+            exit 1
+          fi
+          if [ "$KEY" != true ]; then
+            echo "No key path changed."
+            exit 0
+          fi
+          echo "Key paths changed: $KEY_FILES"
+          if [ "$DOCS" = true ]; then
+            echo "docs/arquitetura or docs/adr changed in the same pull request."
+            exit 0
+          fi
+          if [ "$EXEMPT" = true ]; then
+            echo "Label arquitetura-sem-mudanca: the architecture did not change."
+            exit 0
+          fi
+          echo "::error::a key path changed without docs/arquitetura/ or docs/adr/. Update the diagram it touches (both languages), or add the label arquitetura-sem-mudanca if the architecture did not change."
+          exit 1
