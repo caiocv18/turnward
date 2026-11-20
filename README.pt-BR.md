@@ -24,20 +24,9 @@ O turnward é a camada durável por baixo do agente:
 
 ## Caso de uso: agente de runbook de incidentes
 
-```mermaid
-flowchart LR
-    AM[Webhook do Alertmanager] --> API[turnward api]
-    API -->|append TurnStarted| ES[(Postgres<br/>event store + outbox)]
-    W[turnward worker] -->|lease + fold| ES
-    W -->|RAG| VS[(pgvector<br/>runbooks)]
-    W -->|chamada ao LLM| LLM[Spring AI<br/>Ollama / Claude API]
-    W -->|tools| MCP[Servidores MCP<br/>tools próprias + log-analyst em Python]
-    W -->|tool arriscada| HU[Aprovação humana<br/>Keycloak]
-    ES -->|relay do outbox| K[(Kafka)]
-    K --> M[Medição de tokens<br/>ledger por tenant]
-    M --> R[(Redis<br/>token bucket)]
-    R -.->|fail-closed| W
-```
+![Visão geral do Turnward: os papéis api e worker de uma aplicação Spring Boot sobre um event store no Postgres, com o webhook de alerta, a aprovação, o modelo, o MCP e os runbooks planejados em tracejado](docs/arquitetura/overview.svg)
+
+O que está construído e o que está planejado, o contexto e os containers do C4 e dois fluxos em execução estão em [`docs/arquitetura/`](docs/arquitetura/README.pt-BR.md), mantidos em dia pelo check `architecture` ([ADR-0016](docs/adr/0016-living-architecture-checked-in-the-pull-request.md)).
 
 Um alerta inicia um turno. O worker busca os trechos de runbook correspondentes no pgvector, pergunta ao modelo o que fazer, chama tools por MCP, para e pede aprovação humana quando a tool é arriscada e encerra o turno com uma resolução. Cada passo é um evento, então o turno inteiro pode ser auditado e retomado.
 

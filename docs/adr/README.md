@@ -19,3 +19,4 @@ Decisions are written in the [MADR](https://adr.github.io/madr/) format. An ADR 
 | 0013 | Ephemeral infrastructure with a budget alarm and scheduled destroy | Proposed |
 | 0014 | OpenTelemetry GenAI conventions (experimental) isolated in one adapter | Proposed |
 | 0015 | Confidentiality: synthetic data only, forbidden-name checks kept outside the repository | Proposed |
+| [0016](0016-living-architecture-checked-in-the-pull-request.md) | Living architecture, checked in the pull request that changes it | Accepted |

@@ -24,20 +24,9 @@ turnward is the durable layer underneath the agent:
 
 ## Use case: incident runbook agent
 
-```mermaid
-flowchart LR
-    AM[Alertmanager webhook] --> API[turnward api]
-    API -->|append TurnStarted| ES[(Postgres<br/>event store + outbox)]
-    W[turnward worker] -->|lease + fold| ES
-    W -->|RAG| VS[(pgvector<br/>runbooks)]
-    W -->|LLM call| LLM[Spring AI<br/>Ollama / Claude API]
-    W -->|tools| MCP[MCP servers<br/>own tools + log-analyst in Python]
-    W -->|risky tool| HU[Human approval<br/>Keycloak]
-    ES -->|outbox relay| K[(Kafka)]
-    K --> M[Token metering<br/>ledger per tenant]
-    M --> R[(Redis<br/>token bucket)]
-    R -.->|fail closed| W
-```
+![Turnward overview: the api and worker roles of one Spring Boot application over a Postgres event store, with the planned alert webhook, approval, model, MCP and runbook links dashed](docs/arquitetura/overview.svg)
+
+Built and planned parts, the C4 context and containers and two runtime flows are in [`docs/arquitetura/`](docs/arquitetura/README.md), kept current by the `architecture` check ([ADR-0016](docs/adr/0016-living-architecture-checked-in-the-pull-request.md)).
 
 An alert starts a turn. The worker retrieves the matching runbook chunks from pgvector, asks the model what to do, calls tools over MCP, stops for human approval when a tool is risky, and finishes the turn with a resolution. Every step is an event, so the whole turn can be audited and resumed.
 
